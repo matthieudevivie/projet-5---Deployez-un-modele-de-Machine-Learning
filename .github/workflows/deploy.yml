@@ -1,0 +1,21 @@
+name: CD - Déploiement Hugging Face
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v6
+
+      - name: Pousser vers Hugging Face Spaces
+        uses: huggingface/hub-sync@v0.1.0
+        with:
+          github_repo_id: ${{ github.repository }}
+          huggingface_repo_id: matthieudevivie/attrition-api
+          hf_token: ${{ secrets.HF_TOKEN }}

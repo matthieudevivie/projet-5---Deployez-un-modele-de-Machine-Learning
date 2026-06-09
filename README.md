@@ -1,3 +1,13 @@
+---
+title: API Attrition Projet 5
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Déploiement d’un modèle de Machine Learning - Prédiction d'attrition chez une ESN
 
 ## Présentation du projet

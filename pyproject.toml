@@ -6,15 +6,24 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "fastapi[standard]>=0.136.3",
+    "joblib>=1.5.3",
+    "lightgbm>=4.6.0",
+    "pandas>=3.0.3",
     "pydantic-settings>=2.14.1",
+    "scikit-learn>=1.9.0",
 ]
 
 [dependency-groups]
 dev = [
     "ipykernel>=7.2.0",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.9",
+    "notebook>=7.5.7",
+    "optuna>=4.9.0",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
     "ruff>=0.15.16",
+    "seaborn>=0.13.2",
 ]
 
 [tool.ruff]

@@ -7,7 +7,12 @@ WORKDIR /app
 # Copie tout le projet dans la boîte
 COPY . .
 
-# Installe les dépendances, SANS les outils de dev (ni ruff, ni pytest en prod)
+# Installe les bibliothèques système nécessaires à LightGBM
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installe les dépendances Python, SANS les outils de dev
 RUN uv sync --frozen --no-dev
 
 # Rend le dossier importable (évite "ModuleNotFoundError: No module named 'src'")

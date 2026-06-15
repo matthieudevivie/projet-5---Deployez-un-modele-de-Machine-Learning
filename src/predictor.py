@@ -14,12 +14,6 @@ MODEL_PATH = (
     / "modele_lightgbm_attrition.joblib"
 )
 
-FREQUENCE_DEPLACEMENT_MAPPING = {
-    "Aucun": 0.0,
-    "Occasionnel": 1.0,
-    "Frequent": 2.0,
-}
-
 
 @lru_cache(maxsize=1)
 def charger_modele() -> dict[str, Any]:
@@ -31,9 +25,6 @@ def preparer_donnees(employe: EmployeInput) -> pd.DataFrame:
     colonnes_entree = artefact["colonnes_entree"]
 
     donnees = employe.model_dump()
-    donnees["frequence_deplacement"] = FREQUENCE_DEPLACEMENT_MAPPING[
-        donnees["frequence_deplacement"]
-    ]
 
     return pd.DataFrame([donnees], columns=colonnes_entree)
 

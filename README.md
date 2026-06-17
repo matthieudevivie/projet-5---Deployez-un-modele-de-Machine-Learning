@@ -44,6 +44,8 @@ Le seuil de décision utilisé est `0.371`.
 Le modèle est exporté dans : models/modele_lightgbm_attrition.joblib
 Le notebook permettant de reconstruire cet export est : notebooks/modele_lightgbm_export.ipynb
 
+L'encodage ordinal, fait manuellement en P4 pour l'analyse, a été intégré au pipeline en P5 pour un artefact auto-suffisant
+
 ## Pré-requis
 
 - Python 3.14

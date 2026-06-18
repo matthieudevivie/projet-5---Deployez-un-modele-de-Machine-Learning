@@ -135,6 +135,63 @@ uv run ruff check src tests
 Le projet utilise GitHub Actions pour lancer les tests automatiquement lors des push et pull requests.
 Le déploiement continu vers Hugging Face Spaces est configuré via le workflow dédié.
 
+## Modèle de données
+
+Les interactions avec le modèle sont tracées dans une base **PostgreSQL**
+structurée en deux tables reliées :
+
+- **`employes`** : les caractéristiques d'un employé (les *inputs* du modèle),
+  ainsi que la vérité terrain (`a_quitte_l_entreprise`) archivée pour le
+  monitoring.
+- **`predictions`** : chaque prédiction produite par le modèle (les *outputs*),
+  reliée à l'employé concerné via une clé étrangère.
+
+La relation est de type **un-à-plusieurs** : un employé peut faire l'objet de
+plusieurs prédictions au fil du temps. Cette séparation (normalisation) évite
+de dupliquer les données de l'employé à chaque nouvelle prédiction.
+
+Le schéma ci-dessous est un **diagramme entité-association (ERD)** :
+
+```mermaid
+erDiagram
+    EMPLOYES ||--o{ PREDICTIONS : possede
+
+    EMPLOYES {
+        int id PK
+        int a_quitte_l_entreprise
+        int satisfaction_employee_environnement
+        int satisfaction_employee_nature_travail
+        int satisfaction_employee_equipe
+        int satisfaction_employee_equilibre_pro_perso
+        int note_evaluation_precedente
+        int note_evaluation_actuelle
+        string heure_supplementaires
+        int age
+        string genre
+        int revenu_mensuel
+        string statut_marital
+        string poste
+        int nombre_experiences_precedentes
+        int annees_dans_l_entreprise
+        int nombre_participation_pee
+        int nb_formations_suivies
+        int distance_domicile_travail
+        int niveau_education
+        string domaine_etude
+        string frequence_deplacement
+        int annees_depuis_la_derniere_promotion
+    }
+
+    PREDICTIONS {
+        int id PK
+        int employe_id FK
+        boolean attrition_predite
+        float probabilite
+        float seuil_utilise
+        datetime date_prediction
+    }
+```
+
 ## Authentification
 
 L'API ne met pas encore en place d'authentification applicative. Cette partie pourra être renforcée dans une étape ultérieure selon les besoins de sécurisation.

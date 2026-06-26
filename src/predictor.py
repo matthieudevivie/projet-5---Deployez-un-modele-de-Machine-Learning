@@ -29,13 +29,12 @@ def preparer_donnees(employe: EmployeInput) -> pd.DataFrame:
     return pd.DataFrame([donnees], columns=colonnes_entree)
 
 
-def predire_attrition(employe: EmployeInput) -> dict[str, Any]:
-    artefact = charger_modele()
-    pipeline = artefact["pipeline"]
-    seuil = float(artefact["seuil"])
+def decision_depuis_proba(probabilite_depart: float, seuil: float) -> dict[str, Any]:
+    """Traduit une probabilite et un seuil en decision metier.
 
-    donnees_modele = preparer_donnees(employe)
-    probabilite_depart = float(pipeline.predict_proba(donnees_modele)[0, 1])
+    Fonction PURE : aucune entree/sortie (pas de modele, pas de base). Elle ne
+    fait que comparer deux nombres, ce qui la rend triviale a tester.
+    """
     risque_depart = probabilite_depart >= seuil
 
     return {
@@ -44,3 +43,14 @@ def predire_attrition(employe: EmployeInput) -> dict[str, Any]:
         "probabilite_depart": round(probabilite_depart, 3),
         "seuil": seuil,
     }
+
+
+def predire_attrition(employe: EmployeInput) -> dict[str, Any]:
+    artefact = charger_modele()
+    pipeline = artefact["pipeline"]
+    seuil = float(artefact["seuil"])
+
+    donnees_modele = preparer_donnees(employe)
+    probabilite_depart = float(pipeline.predict_proba(donnees_modele)[0, 1])
+
+    return decision_depuis_proba(probabilite_depart, seuil)

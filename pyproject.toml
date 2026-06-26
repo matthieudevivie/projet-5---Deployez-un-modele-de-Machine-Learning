@@ -34,3 +34,4 @@ extend-exclude = ["notebooks"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+addopts = "--cov=src --cov-report=term-missing"

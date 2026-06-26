@@ -13,33 +13,8 @@ def test_racine_repond_ok():
     assert reponse.json()["statut"] == "ok"
 
 
-def employe_valide():
-    return {
-        "satisfaction_employee_environnement": 2,
-        "satisfaction_employee_nature_travail": 4,
-        "satisfaction_employee_equipe": 1,
-        "satisfaction_employee_equilibre_pro_perso": 1,
-        "note_evaluation_precedente": 3,
-        "note_evaluation_actuelle": 3,
-        "heure_supplementaires": "Oui",
-        "age": 41,
-        "genre": "F",
-        "revenu_mensuel": 5993,
-        "statut_marital": "Célibataire",
-        "poste": "Cadre Commercial",
-        "nombre_experiences_precedentes": 8,
-        "annees_dans_l_entreprise": 6,
-        "nombre_participation_pee": 0,
-        "nb_formations_suivies": 0,
-        "distance_domicile_travail": 1,
-        "niveau_education": 2,
-        "domaine_etude": "Infra & Cloud",
-        "frequence_deplacement": "Occasionnel",
-        "annees_depuis_la_derniere_promotion": 0,
-    }
-
-def test_predict_repond_ok():
-    reponse = client.post("/predict", json=employe_valide())
+def test_predict_repond_ok(employe_valide):
+    reponse = client.post("/predict", json=employe_valide)
 
     assert reponse.status_code == 200
 
@@ -49,18 +24,66 @@ def test_predict_repond_ok():
     assert 0 <= donnees["probabilite_depart"] <= 1
     assert donnees["seuil"] == pytest.approx(0.371)
 
-def test_predict_rejette_champ_manquant():
-    payload = employe_valide()
-    payload.pop("age")
+def test_predict_rejette_champ_manquant(employe_valide):
+    employe_valide.pop("age")
 
-    reponse = client.post("/predict", json=payload)
+    reponse = client.post("/predict", json=employe_valide)
+
+    assert reponse.status_code == 422
+
+def test_predict_rejette_valeur_invalide(employe_valide):
+    employe_valide["frequence_deplacement"] = "Rare"
+
+    reponse = client.post("/predict", json=employe_valide)
 
     assert reponse.status_code == 422
 
-def test_predict_rejette_valeur_invalide():
-    payload = employe_valide()
-    payload["frequence_deplacement"] = "Rare"
 
-    reponse = client.post("/predict", json=payload)
+# --- Degradation gracieuse de la base (tests avec mocking) ----------------
 
-    assert reponse.status_code == 422
+
+class _FakeSessionQuiEchoue:
+    """Doublure de session qui simule une base en panne : add() leve une erreur.
+
+    rollback() et close() sont des coquilles vides : on veut juste que le code
+    de gestion d'erreur (except/finally) puisse les appeler sans planter.
+    """
+
+    def add(self, objet):
+        raise RuntimeError("Base de donnees injoignable (simulee)")
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
+
+
+def test_predict_ignore_enregistrement_si_base_desactivee(employe_valide, monkeypatch):
+    """Base desactivee (cas Hugging Face) : la prediction passe, sans enregistrement."""
+    monkeypatch.setattr("src.api.DB_ENABLED", False)
+
+    reponse = client.post("/predict", json=employe_valide)
+
+    assert reponse.status_code == 200
+    donnees = reponse.json()
+    assert donnees["prediction"] in ["Oui", "Non"]
+    assert donnees["enregistre"] is False
+    assert donnees["id_prediction"] is None
+
+
+def test_predict_fonctionne_meme_si_base_echoue(employe_valide, monkeypatch):
+    """Base active mais EN PANNE : la prediction passe quand meme (degradation)."""
+    # 1) on active la base...
+    monkeypatch.setattr("src.api.DB_ENABLED", True)
+    # 2) ...mais on la remplace par une doublure qui echoue a la moindre ecriture.
+    monkeypatch.setattr("src.api.SessionLocal", lambda: _FakeSessionQuiEchoue())
+
+    reponse = client.post("/predict", json=employe_valide)
+
+    # La promesse : l'incident base est INVISIBLE pour le client.
+    assert reponse.status_code == 200
+    donnees = reponse.json()
+    assert donnees["prediction"] in ["Oui", "Non"]
+    assert donnees["enregistre"] is False
+    assert donnees["id_prediction"] is None

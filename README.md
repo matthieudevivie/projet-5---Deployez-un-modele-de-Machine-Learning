@@ -46,6 +46,31 @@ Le notebook permettant de reconstruire cet export est : notebooks/modele_lightgb
 
 L'encodage ordinal, fait manuellement en P4 pour l'analyse, a été intégré au pipeline en P5 pour un artefact auto-suffisant
 
+### Performances du modèle
+
+Le jeu de données est **déséquilibré** (~16 % de départs). L'*accuracy* y serait
+trompeuse : un modèle prédisant « aucun départ » atteindrait déjà 84 %
+d'accuracy sans aucune utilité. La métrique de pilotage retenue est donc le
+**F2-score**, qui pondère le **rappel** deux fois plus que la précision —
+cohérent avec l'enjeu RH : mieux vaut **détecter un maximum de départs
+potentiels** (rappel élevé), quitte à générer quelques fausses alertes. Le seuil
+de décision `0.371` a été optimisé en ce sens, en validation croisée sur les
+données d'entraînement.
+
+Performances du modèle retenu (**LightGBM + feature engineering + Optuna**) :
+
+| Métrique | Validation croisée (train) | Jeu de test (294 employés) |
+|---|---|---|
+| Rappel (*recall*) | 0.70 | 0.55 |
+| Précision | 0.49 | 0.40 |
+| F2-score | 0.64 | 0.51 |
+| F1-score | — | 0.46 |
+
+Le seuil ayant été **figé avant** l'évaluation finale sur le jeu de test, ces
+chiffres constituent une estimation honnête de la performance attendue en
+production. L'écart entre validation croisée et test (rappel 0.70 → 0.55)
+reflète une légère sur-estimation en CV, documentée en toute transparence.
+
 ## Pré-requis
 
 - Python 3.14
@@ -124,11 +149,65 @@ Les données entrantes sont validées avec Pydantic. Par exemple, une valeur inv
 
 ## Tests
 
-Lancer les tests :
-uv run pytest
+### Stratégie de test
 
-Lancer le contrôle de style :
+La suite de tests (Pytest) combine deux niveaux complémentaires :
+
+- **Tests unitaires** : ils valident une brique isolée, sans dépendance externe
+  (modèle ou base). Rapides et déterministes, ils localisent précisément une
+  régression. Exemple : la logique du seuil de décision, extraite dans la
+  fonction pure `decision_depuis_proba`, est testée avec de simples nombres.
+- **Tests fonctionnels** : ils exercent toute la chaîne via des requêtes HTTP
+  (grâce au `TestClient` de FastAPI), comme le ferait un vrai client de l'API.
+  Ils garantissent que les maillons (validation → prédiction → réponse JSON)
+  s'emboîtent correctement.
+
+### Organisation des tests
+
+| Fichier | Niveau | Couvre |
+|---|---|---|
+| `tests/test_predictor.py` | unitaire | la décision métier selon le seuil (dont le **cas limite** `proba == seuil`) |
+| `tests/test_schemas.py` | unitaire | la validation Pydantic (acceptation des entrées valides, **rejet** des invalides) |
+| `tests/test_features.py` | unitaire | le feature engineering (médianes apprises au `fit`, formules calculées au `transform`) |
+| `tests/test_api.py` | fonctionnel | les endpoints HTTP, les erreurs de validation (422) et la **dégradation gracieuse** de la base |
+| `tests/conftest.py` | — | les *fixtures* partagées (ex. un employé valide de référence) |
+
+Quelques scénarios critiques explicitement couverts :
+
+- **Cas limite du seuil** : une probabilité exactement égale au seuil (`0.371`)
+  doit prédire un départ (le code utilise `>=`).
+- **Scénarios d'erreur** : champ obligatoire manquant ou valeur hors des
+  valeurs autorisées renvoient une erreur HTTP 422.
+- **Dégradation gracieuse** : si la base PostgreSQL est désactivée ou en panne
+  (simulée par *mocking* avec `monkeypatch`), la prédiction aboutit quand même
+  et l'API renvoie une réponse valide — l'incident est invisible pour le client.
+
+### Lancer les tests
+
+```bash
+uv run pytest
+```
+
+La couverture de code (via `pytest-cov`) est calculée automatiquement et
+affichée dans le terminal (configuré dans `pyproject.toml`).
+
+### Rapport de couverture
+
+Pour générer un rapport HTML navigable (chaque ligne non testée est surlignée) :
+
+```bash
+uv run pytest --cov-report=html
+```
+
+Le rapport est écrit dans `htmlcov/` (ouvrir `htmlcov/index.html`). La
+couverture globale du code applicatif (`src/`) est de **97 %**, les modules
+cœur (`schemas`, `predictor`, `features`) étant couverts à 100 %.
+
+### Contrôle de style
+
+```bash
 uv run ruff check src tests
+```
 
 ## CI/CD
 
@@ -191,6 +270,29 @@ erDiagram
         datetime date_prediction
     }
 ```
+
+## Maintenance et mise à jour du modèle
+
+Le modèle est un artefact figé (`models/modele_lightgbm_attrition.joblib`)
+contenant le pipeline complet (feature engineering + prétraitement + LightGBM)
+et le seuil de décision. Pour le mettre à jour :
+
+1. **Réentraîner** : exécuter `notebooks/modele_lightgbm_export.ipynb`, qui
+   reconstruit le pipeline et régénère le fichier `.joblib`.
+2. **Vérifier** : relancer la suite de tests (`uv run pytest`) pour s'assurer que
+   le nouveau modèle respecte toujours le contrat de l'API (format de sortie,
+   bornes de probabilité, valeur du seuil).
+3. **Versionner** : committer le nouvel artefact et créer un tag de version
+   (ex. `vX.Y.Z`).
+4. **Déployer** : pousser sur `main` ; la CI/CD (GitHub Actions) exécute les
+   tests puis déploie automatiquement vers Hugging Face Spaces.
+
+### Suivi en production (monitoring)
+
+La base PostgreSQL trace chaque prédiction (table `predictions`) et conserve la
+vérité terrain (`a_quitte_l_entreprise` dans `employes`). Ce dispositif permet,
+à terme, de comparer prédictions et réalité pour détecter une éventuelle dérive
+du modèle (*model drift*) et déclencher un réentraînement.
 
 ## Authentification
 

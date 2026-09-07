@@ -54,3 +54,18 @@ def predire_attrition(employe: EmployeInput) -> dict[str, Any]:
     probabilite_depart = float(pipeline.predict_proba(donnees_modele)[0, 1])
 
     return decision_depuis_proba(probabilite_depart, seuil)
+
+
+def information_modele() -> dict[str, Any]:
+    """Renvoie des informations sur le modèle utilisé pour la prédiction."""
+    artefact = charger_modele()
+    seuil = float(artefact["seuil"])
+    colonnes_entree = artefact["colonnes_entree"]
+    nombre_de_features = len(colonnes_entree)
+    etapes_pipeline = [nom for nom, _ in artefact["pipeline"].steps]
+
+    return {
+        "seuil": seuil,
+        "nombre_de_features": nombre_de_features,
+        "etapes_pipeline": etapes_pipeline,
+    }

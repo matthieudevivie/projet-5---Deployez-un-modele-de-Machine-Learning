@@ -3,8 +3,8 @@ import logging
 from fastapi import FastAPI
 
 from src.database import DB_ENABLED, Employe, Prediction, SessionLocal
-from src.predictor import predire_attrition
-from src.schemas import EmployeInput
+from src.predictor import predire_attrition, information_modele
+from src.schemas import EmployeInput, PredictionOutput
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -55,7 +55,13 @@ def enregistrer_en_base(employe: EmployeInput, resultat: dict) -> int | None:
         session.close()
 
 
-@app.post("/predict")
+@app.get("/model-info")
+def model_info():
+    """Endpoint pour obtenir des informations sur le modèle utilisé."""
+    return information_modele()
+
+
+@app.post("/predict", response_model=PredictionOutput)
 def predict(employe: EmployeInput):
     # La prediction passe TOUJOURS, independamment de la base.
     resultat = predire_attrition(employe)

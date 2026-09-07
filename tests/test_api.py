@@ -13,6 +13,32 @@ def test_racine_repond_ok():
     assert reponse.json()["statut"] == "ok"
 
 
+def test_model_info_expose_la_structure_attendue():
+    """Contrat de l'endpoint : les bonnes cles, les bons types. Independant du modele."""
+    reponse = client.get("/model-info")
+
+    assert reponse.status_code == 200
+
+    donnees = reponse.json()
+    assert set(donnees) == {"seuil", "nombre_de_features", "etapes_pipeline"}
+    assert 0 < donnees["seuil"] < 1
+    assert donnees["nombre_de_features"] > 0
+    assert isinstance(donnees["etapes_pipeline"], list)
+
+
+def test_artefact_deploye_est_bien_celui_attendu():
+    """Sentinelle : verifie que le .joblib servi est le modele valide au projet 4.
+
+    Ce test DOIT casser si l'artefact est remplace : c'est le signal qu'une
+    revalidation du modele est necessaire avant mise en production.
+    """
+    donnees = client.get("/model-info").json()
+
+    assert donnees["seuil"] == pytest.approx(0.371)
+    assert donnees["nombre_de_features"] == 21
+    assert donnees["etapes_pipeline"] == ["feature_engineer", "preprocessor", "model"]
+
+
 def test_predict_repond_ok(employe_valide):
     reponse = client.post("/predict", json=employe_valide)
 

@@ -34,7 +34,7 @@ def test_artefact_deploye_est_bien_celui_attendu():
     """
     donnees = client.get("/model-info").json()
 
-    assert donnees["seuil"] == pytest.approx(0.371)
+    assert donnees["seuil"] == pytest.approx(0.299)
     assert donnees["nombre_de_features"] == 21
     assert donnees["etapes_pipeline"] == ["feature_engineer", "preprocessor", "model"]
 
@@ -48,7 +48,7 @@ def test_predict_repond_ok(employe_valide):
     assert donnees["prediction"] in ["Oui", "Non"]
     assert isinstance(donnees["risque_depart"], bool)
     assert 0 <= donnees["probabilite_depart"] <= 1
-    assert donnees["seuil"] == pytest.approx(0.371)
+    assert donnees["seuil"] == pytest.approx(0.299)
 
 def test_predict_rejette_champ_manquant(employe_valide):
     employe_valide.pop("age")

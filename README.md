@@ -39,12 +39,21 @@ Le pipeline sauvegardé contient :
 2. un prétraitement des variables numériques et catégorielles ;
 3. le modèle LightGBM entraîné.
 
-Le seuil de décision utilisé est `0.371`.
+Le seuil de décision utilisé est `0.299`.
 
 Le modèle est exporté dans : models/modele_lightgbm_attrition.joblib
 Le notebook permettant de reconstruire cet export est : notebooks/modele_lightgbm_export.ipynb
 
 L'encodage ordinal, fait manuellement en P4 pour l'analyse, a été intégré au pipeline en P5 pour un artefact auto-suffisant
+
+**Note de version (v0.8.0).** L'artefact exporté initialement présentait un
+écart avec le pipeline validé au projet 4 : le `ColumnTransformer`, configuré
+avec `remainder='drop'`, ne recevait pas la liste des neuf variables créées par
+l'étape de feature engineering, qui étaient donc calculées puis écartées avant
+le modèle (33 variables en entrée au lieu de 42). Le préprocesseur a été
+réaligné, le seuil de décision re-dérivé par validation croisée (0.371 → 0.299),
+et les performances réévaluées sur le jeu de test. Les hyperparamètres Optuna,
+optimisés au projet 4 sur ce même pipeline complet, ont été conservés.
 
 ### Performances du modèle
 
@@ -54,21 +63,20 @@ d'accuracy sans aucune utilité. La métrique de pilotage retenue est donc le
 **F2-score**, qui pondère le **rappel** deux fois plus que la précision —
 cohérent avec l'enjeu RH : mieux vaut **détecter un maximum de départs
 potentiels** (rappel élevé), quitte à générer quelques fausses alertes. Le seuil
-de décision `0.371` a été optimisé en ce sens, en validation croisée sur les
+de décision `0.299` a été optimisé en ce sens, en validation croisée sur les
 données d'entraînement.
 
 Performances du modèle retenu (**LightGBM + feature engineering + Optuna**) :
 
 | Métrique | Validation croisée (train) | Jeu de test (294 employés) |
 |---|---|---|
-| Rappel (*recall*) | 0.70 | 0.55 |
-| Précision | 0.49 | 0.40 |
-| F2-score | 0.64 | 0.51 |
-| F1-score | — | 0.46 |
+| Rappel (*recall*) | 0.72 | 0.60 |
+| Précision | 0.44 | 0.38 |
+| F2-score | 0.64 | 0.54 |
 
 Le seuil ayant été **figé avant** l'évaluation finale sur le jeu de test, ces
 chiffres constituent une estimation honnête de la performance attendue en
-production. L'écart entre validation croisée et test (rappel 0.70 → 0.55)
+production. L'écart entre validation croisée et test (rappel 0.72 → 0.60)
 reflète une légère sur-estimation en CV, documentée en toute transparence.
 
 ## Pré-requis
@@ -109,6 +117,20 @@ Exemple de réponse :
   "status": "healthy"
 }
 
+GET /model-info
+Retourne des informations sur le modèle utilisé
+
+Exemple de réponse :
+{
+  "seuil": 0.299,
+  "nombre_de_features": 21,
+  "etapes_pipeline": [
+    "feature_engineer",
+    "preprocessor",
+    "model"
+  ]
+}
+
 POST /predict
 Retourne une prédiction d'attrition pour un employé.
 
@@ -141,8 +163,10 @@ Exemple de réponse :
 {
   "prediction": "Oui",
   "risque_depart": true,
-  "probabilite_depart": 0.858,
-  "seuil": 0.371
+  "probabilite_depart": 0.917,
+  "seuil": 0.299,
+  "enregistre": true,
+  "id_prediction": 25
 }
 
 Les données entrantes sont validées avec Pydantic. Par exemple, une valeur invalide pour frequence_deplacement ou un âge inférieur à 18 ans renvoie une erreur 422.
@@ -174,7 +198,7 @@ La suite de tests (Pytest) combine deux niveaux complémentaires :
 
 Quelques scénarios critiques explicitement couverts :
 
-- **Cas limite du seuil** : une probabilité exactement égale au seuil (`0.371`)
+- **Cas limite du seuil** : une probabilité exactement égale au seuil (`0.299`)
   doit prédire un départ (le code utilise `>=`).
 - **Scénarios d'erreur** : champ obligatoire manquant ou valeur hors des
   valeurs autorisées renvoient une erreur HTTP 422.

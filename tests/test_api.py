@@ -13,6 +13,13 @@ def test_racine_repond_ok():
     assert reponse.json()["statut"] == "ok"
 
 
+def test_health_repond_ok():
+    """Vérifie que l'endpoint health répond bien avec un statut 200 et 'healthy'."""
+    reponse = client.get("/health")
+    assert reponse.status_code == 200
+    assert reponse.json()["status"] == "healthy"
+
+
 def test_model_info_expose_la_structure_attendue():
     """Contrat de l'endpoint : les bonnes cles, les bons types. Independant du modele."""
     reponse = client.get("/model-info")
@@ -64,6 +71,21 @@ def test_predict_rejette_valeur_invalide(employe_valide):
 
     assert reponse.status_code == 422
 
+def test_profil_a_risque_score_plus_haut_qu_un_profil_sur(employe_valide, employe_faible_risque):
+    """Test de comportement : le modele doit ORDONNER correctement deux profils
+    contrastes. Independant du calibrage, il survit a un reentrainement — mais
+    il casse si les probabilites sont inversees ou le modele remplace par erreur.
+    """
+    reponse_risque = client.post("/predict", json=employe_valide)
+    reponse_sur = client.post("/predict", json=employe_faible_risque)
+
+    assert reponse_risque.status_code == 200
+    assert reponse_sur.status_code == 200
+
+    proba_risque = reponse_risque.json()["probabilite_depart"]
+    proba_sur = reponse_sur.json()["probabilite_depart"]
+
+    assert proba_risque > proba_sur
 
 # --- Degradation gracieuse de la base (tests avec mocking) ----------------
 

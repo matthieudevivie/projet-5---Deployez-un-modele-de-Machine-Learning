@@ -16,5 +16,11 @@ htmlcov/
 
 .coverage
 
-de_vivie_matthieu_5_presentation_062026.pptx
+# Livrables deposes sur la plateforme, hors du depot
+de_vivie_matthieu_5_presentation_*.pptx
+
+# Enonces de cours OpenClassrooms
+Mission - *.md
+
+# Transcript soutenance
 transcript_soutenance_projet5.md

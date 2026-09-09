@@ -75,3 +75,15 @@ INNER JOIN employes AS e ON e.id = p.employe_id
 WHERE p.attrition_predite = TRUE
 ORDER BY p.probabilite DESC
 LIMIT 20;
+
+
+-- --- Requete 5 : employes a risque detectes, par poste ---------------------
+-- Vue RH par poste : quels métiers concentrent le plus de profils à risque, pour orienter les actions de fidélisation.
+SELECT
+    e.poste,
+    COUNT(*) AS nb_a_risque
+FROM predictions AS p
+INNER JOIN employes AS e ON e.id = p.employe_id
+WHERE p.attrition_predite = TRUE
+GROUP BY e.poste
+ORDER BY nb_a_risque DESC;

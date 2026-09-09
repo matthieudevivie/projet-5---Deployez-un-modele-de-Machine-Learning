@@ -1,0 +1,30 @@
+# Environnement virtuel : construit DANS l'image, jamais copie depuis l'hote
+.venv/
+
+# Historique Git : inutile en production, et volumineux
+.git/
+.github/
+
+# Caches et artefacts generes
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.ipynb_checkpoints/
+
+# Travaux d'exploration : hors perimetre du service
+notebooks/
+data/
+tests/
+docs/
+sql/
+
+# Secrets et fichiers systeme
+.env
+.DS_Store
+
+# Livrables de soutenance
+*.pptx
+transcript_soutenance_projet5.md

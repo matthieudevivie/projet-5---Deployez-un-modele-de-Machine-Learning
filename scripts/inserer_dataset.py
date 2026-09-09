@@ -11,9 +11,9 @@ from sqlalchemy import text
 
 # Permet d'importer src/database.py depuis le dossier scripts/
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(PROJECT_ROOT / "src"))
+sys.path.append(str(PROJECT_ROOT))
 
-from database import Employe, SessionLocal  # noqa: E402
+from src.database import Employe, SessionLocal  # noqa: E402
 
 CSV_PATH = PROJECT_ROOT / "data" / "dataset_final.csv"
 

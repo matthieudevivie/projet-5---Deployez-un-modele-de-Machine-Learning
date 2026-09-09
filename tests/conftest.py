@@ -7,6 +7,17 @@ est disponible dans n'importe quel test, simplement en la nommant en parametre.
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def base_desactivee_par_defaut(monkeypatch):
+    """Aucun test n'ecrit dans la vraie base.
+
+    autouse=True : cette fixture s'applique a TOUS les tests sans qu'ils aient
+    a la demander. Les deux tests qui exercent la persistance la reactivent
+    explicitement avec leur propre monkeypatch, qui s'applique apres celui-ci.
+    """
+    monkeypatch.setattr("src.api.DB_ENABLED", False)
+
+
 @pytest.fixture
 def employe_valide():
     """Un employe parfaitement conforme au schema EmployeInput.

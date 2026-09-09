@@ -7,9 +7,9 @@ import sys
 from pathlib import Path
 
 # Permet d'importer src/database.py depuis le dossier scripts/
-sys.path.append(str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from database import Base, engine  # noqa: E402
+from src.database import Base, engine  # noqa: E402
 
 
 def main() -> None:

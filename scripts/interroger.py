@@ -7,11 +7,12 @@ Usage : uv run python scripts/interroger.py
 
 import sys
 from pathlib import Path
+from sqlalchemy import func
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-sys.path.append(str(PROJECT_ROOT / "src"))
+sys.path.append(str(PROJECT_ROOT))
 
-from database import Employe, Prediction, SessionLocal  # noqa: E402
+from src.database import Employe, Prediction, SessionLocal  # noqa: E402
 
 
 def historique_employe(session, employe_id: int) -> list[Prediction]:
@@ -59,6 +60,21 @@ def employes_a_risque(session, limite: int = 10) -> list[tuple]:
     )
 
 
+def employes_a_risque_par_poste(session, limite: int = 10) -> list[tuple]:
+    """Liste les postes avec le plus d'employés à risque, triés par nombre décroissant."""
+    nb_a_risque = func.count(Employe.id).label("nb_a_risque")
+
+    return (
+        session.query(Employe.poste, nb_a_risque)
+        .join(Prediction, Employe.id == Prediction.employe_id)
+        .filter(Prediction.attrition_predite.is_(True))
+        .group_by(Employe.poste)
+        .order_by(nb_a_risque.desc())
+        .limit(limite)
+        .all()
+    )
+
+
 def main() -> None:
     session = SessionLocal()
     try:
@@ -71,6 +87,10 @@ def main() -> None:
         print("\nTop employes a risque :")
         for employe_id, poste, proba in employes_a_risque(session, limite=5):
             print(f"  Employe {employe_id:>4} | {poste:<25} | proba {proba}")
+
+        print("\nPostes les plus touches :")
+        for poste, nb_a_risque in employes_a_risque_par_poste(session, limite=5):
+            print(f"  {poste:<25} | {nb_a_risque}")
     finally:
         session.close()
 

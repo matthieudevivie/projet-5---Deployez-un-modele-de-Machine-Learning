@@ -20,17 +20,23 @@ def test_employe_valide_est_accepte(employe_valide):
     assert employe.frequence_deplacement == "Occasionnel"
 
 
-def test_age_hors_bornes_est_rejete(employe_valide):
-    """age doit etre entre 18 et 70 ; 10 est trop jeune => ValidationError."""
-    employe_valide["age"] = 10
-
-    with pytest.raises(ValidationError):
-        EmployeInput(**employe_valide)
-
-
-def test_valeur_litterale_invalide_est_rejetee(employe_valide):
-    """'Rare' n'est pas une frequence_deplacement autorisee => ValidationError."""
-    employe_valide["frequence_deplacement"] = "Rare"
+@pytest.mark.parametrize(
+    "champ, valeur",
+    [
+        ("age", 17),
+        ("age", 71),
+        ("satisfaction_employee_environnement", 0),
+        ("satisfaction_employee_environnement", 5),
+        ("satisfaction_employee_nature_travail", 0),
+        ("satisfaction_employee_nature_travail", 5),
+        ("frequence_deplacement", "Rare"),        # modalite non autorisee
+        ("statut_marital", "Pacsé(e)"),           # idem, sur un autre champ
+    ],
+)
+def test_valeur_invalide_est_rejetee(employe_valide, champ, valeur):
+    """Bornes numeriques (ge/le) et modalites autorisees (Literal) : tout ecart
+    doit lever une ValidationError a la construction de l'objet."""
+    employe_valide[champ] = valeur
 
     with pytest.raises(ValidationError):
         EmployeInput(**employe_valide)

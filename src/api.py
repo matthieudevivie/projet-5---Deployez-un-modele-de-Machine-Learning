@@ -1,6 +1,7 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from src.security import verifier_cle_api
 
 from src.database import DB_ENABLED, Employe, Prediction, SessionLocal
 from src.predictor import predire_attrition, information_modele
@@ -55,13 +56,13 @@ def enregistrer_en_base(employe: EmployeInput, resultat: dict) -> int | None:
         session.close()
 
 
-@app.get("/model-info")
+@app.get("/model-info", dependencies=[Depends(verifier_cle_api)])
 def model_info():
     """Endpoint pour obtenir des informations sur le modèle utilisé."""
     return information_modele()
 
 
-@app.post("/predict", response_model=PredictionOutput)
+@app.post("/predict", response_model=PredictionOutput, dependencies=[Depends(verifier_cle_api)])
 def predict(employe: EmployeInput):
     # La prediction passe TOUJOURS, independamment de la base.
     resultat = predire_attrition(employe)

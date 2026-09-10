@@ -1,9 +1,17 @@
 import pytest
 from fastapi.testclient import TestClient
+from src.config import settings
 
 from src.api import app
 
-client = TestClient(app)
+from tests.conftest import CLE_API_DE_TEST
+
+# Ce client envoie la clé sur TOUTES ses requêtes : les 10 tests existants
+# n'ont donc aucune modification à subir.
+client = TestClient(app, headers={"X-API-Key": CLE_API_DE_TEST})
+
+# Client volontairement anonyme, pour tester le refus.
+client_anonyme = TestClient(app)
 
 
 def test_racine_repond_ok():
@@ -135,3 +143,38 @@ def test_predict_fonctionne_meme_si_base_echoue(employe_valide, monkeypatch):
     assert donnees["prediction"] in ["Oui", "Non"]
     assert donnees["enregistre"] is False
     assert donnees["id_prediction"] is None
+
+
+# --- Authentification ------------------------------------------------------
+
+
+def test_predict_sans_cle_est_refuse(employe_valide):
+    """Sans en-tête X-API-Key, l'API refuse avant même de charger le modèle."""
+    reponse = client_anonyme.post("/predict", json=employe_valide)
+
+    assert reponse.status_code == 401
+
+
+def test_predict_avec_mauvaise_cle_est_refuse(employe_valide):
+    """Une clé qui ne correspond pas est refusée de la même façon."""
+    reponse = client.post(
+        "/predict",
+        json=employe_valide,
+        headers={"X-API-Key": "mauvaise-cle"},
+    )
+
+    assert reponse.status_code == 401
+
+
+def test_model_info_est_aussi_protege():
+    """La protection ne couvre pas que /predict."""
+    assert client_anonyme.get("/model-info").status_code == 401
+
+
+def test_serveur_sans_cle_configuree_renvoie_500(employe_valide, monkeypatch):
+    """Clé absente de la configuration : erreur serveur, pas erreur client."""
+    monkeypatch.setattr(settings, "api_key", "")
+
+    reponse = client.post("/predict", json=employe_valide)
+
+    assert reponse.status_code == 500

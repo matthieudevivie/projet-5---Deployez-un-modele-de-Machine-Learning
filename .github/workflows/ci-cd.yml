@@ -1,0 +1,56 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # ---------------------------------------------------------------
+  # Intégration continue : qualité du code + tests.
+  # ATTENTION : le nom "tests" est le contrat avec la règle de
+  # protection de main. Ne pas le renommer.
+  # ---------------------------------------------------------------
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v6
+
+      - name: Installer uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+
+      - name: Installer les dépendances
+        run: uv sync
+
+      - name: Vérifier le style (ruff)
+        run: uv run ruff check .
+
+      - name: Lancer les tests
+        run: uv run pytest
+
+  # ---------------------------------------------------------------
+  # Déploiement continu : ne démarre QUE si le job "tests" est vert
+  # (needs) ET uniquement sur un push vers main (if).
+  # ---------------------------------------------------------------
+  deploy:
+    name: deploy
+    needs: tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v6
+
+      - name: Pousser vers Hugging Face Spaces
+        uses: huggingface/hub-sync@v0.1.0
+        with:
+          github_repo_id: ${{ github.repository }}
+          huggingface_repo_id: matthieudevivie/attrition-api
+          hf_token: ${{ secrets.HF_TOKEN }}

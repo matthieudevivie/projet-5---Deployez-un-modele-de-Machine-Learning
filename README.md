@@ -320,7 +320,36 @@ du modèle (*model drift*) et déclencher un réentraînement.
 
 ## Authentification
 
-L'API ne met pas encore en place d'authentification applicative. Cette partie pourra être renforcée dans une étape ultérieure selon les besoins de sécurisation.
+Les endpoints `/model-info` et `/predict` sont protégés par une **clé d'API**.
+Le client doit fournir l'en-tête HTTP :
+
+X-API-Key: <votre clé>
+
+En l'absence de clé, ou avec une clé invalide, l'API répond **401 Unauthorized**
+sans exécuter le modèle.
+
+Les endpoints `/` et `/health` restent publics : ce sont les sondes de
+disponibilité de la plateforme d'hébergement.
+
+Le schéma de sécurité est déclaré dans OpenAPI : la documentation Swagger
+(`/docs`) affiche un bouton **Authorize** permettant de saisir la clé et de
+tester les endpoints protégés depuis le navigateur.
+
+La clé n'est jamais présente dans le dépôt. Elle est fournie par la variable
+d'environnement `API_KEY` : via le fichier `.env` en local, via un secret
+d'espace sur Hugging Face en production.
+
+Exemple d'appel :
+
+curl -X POST https://<space>.hf.space/predict \
+  -H "X-API-Key: <votre clé>" \
+  -H "Content-Type: application/json" \
+  -d @employe.json
+
+**Limites actuelles** : une clé unique partagée par tous les clients, sans
+expiration ni révocation individuelle, et sans identification de l'appelant.
+Pour un usage réel multi-clients, un mécanisme OAuth2 / JWT avec comptes et
+jetons expirants serait nécessaire.
 
 ## Sécurisation
 Les secrets, comme les tokens Hugging Face ou les futurs accès PostgreSQL, ne sont pas commités dans le dépôt.

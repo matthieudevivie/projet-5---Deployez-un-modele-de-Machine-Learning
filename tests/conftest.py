@@ -5,6 +5,19 @@ est disponible dans n'importe quel test, simplement en la nommant en parametre.
 """
 
 import pytest
+from src.config import settings
+
+CLE_API_DE_TEST = "cle-de-test-projet5"
+
+
+@pytest.fixture(autouse=True)
+def cle_api_configuree(monkeypatch):
+    """Fixe une clé d'API connue pour toute la suite de tests.
+
+    autouse=True : s'applique partout. monkeypatch remet automatiquement
+    la valeur d'origine après chaque test.
+    """
+    monkeypatch.setattr(settings, "api_key", CLE_API_DE_TEST)
 
 
 @pytest.fixture(autouse=True)

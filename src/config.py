@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     # Il sera fourni par .env en local, et par un secret GitHub/HF en prod.
     hf_token: str = ""
 
+    # Clé d'API attendue dans l'en-tête X-API-Key.
+    # Valeur par défaut VIDE : jamais de vraie clé dans le code.
+    # Fournie par .env en local, par un secret d'espace en production.
+    api_key: str = ""
+
     # --- Base de données --------------------------------------------------
     # Interrupteur : la base n'est activée que si DB_ENABLED=true dans le .env.
     # En local on l'active ; sur Hugging Face on ne le met pas (donc False).

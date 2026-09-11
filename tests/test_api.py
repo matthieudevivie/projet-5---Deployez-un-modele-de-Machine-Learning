@@ -178,3 +178,60 @@ def test_serveur_sans_cle_configuree_renvoie_500(employe_valide, monkeypatch):
     reponse = client.post("/predict", json=employe_valide)
 
     assert reponse.status_code == 500
+
+
+class _FakeSessionQuiReussit:
+    """Doublure de session qui simule une base qui repond normalement.
+
+    Elle imite les deux moments ou PostgreSQL attribue un identifiant :
+    flush() donne son id a l'employe (via la sequence), commit() donne le
+    sien a la prediction. Elle memorise aussi ce qu'on lui a demande
+    d'ecrire, pour qu'on puisse le verifier.
+    """
+
+    def __init__(self):
+        self.objets_ajoutes = []
+
+    def add(self, objet):
+        self.objets_ajoutes.append(objet)
+
+    def flush(self):
+        self.objets_ajoutes[0].id = 42      # l'employe
+
+    def commit(self):
+        self.objets_ajoutes[1].id = 99      # la prediction
+
+    def rollback(self):
+        pass
+
+    def close(self):
+        pass
+
+
+def test_predict_enregistre_entree_et_sortie_quand_la_base_repond(
+    employe_valide, monkeypatch
+):
+    """Chemin nominal de la persistance : l'entree ET la sortie sont archivees,
+    et la prediction enregistree correspond bien a celle renvoyee au client.
+    """
+    session_factice = _FakeSessionQuiReussit()
+    monkeypatch.setattr("src.api.DB_ENABLED", True)
+    monkeypatch.setattr("src.api.SessionLocal", lambda: session_factice)
+
+    reponse = client.post("/predict", json=employe_valide)
+
+    assert reponse.status_code == 200
+    donnees = reponse.json()
+    assert donnees["enregistre"] is True
+    assert donnees["id_prediction"] == 99
+
+    # Deux objets ecrits : l'employe (entree) puis la prediction (sortie).
+    assert len(session_factice.objets_ajoutes) == 2
+    employe_ecrit, prediction_ecrite = session_factice.objets_ajoutes
+
+    # La cle etrangere pointe bien sur l'employe qui vient d'etre cree.
+    assert prediction_ecrite.employe_id == employe_ecrit.id
+
+    # Ce qui est archive est exactement ce qui a ete renvoye au client.
+    assert prediction_ecrite.probabilite == donnees["probabilite_depart"]
+    assert prediction_ecrite.seuil_utilise == donnees["seuil"]

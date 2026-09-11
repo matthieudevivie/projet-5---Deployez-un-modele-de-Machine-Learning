@@ -193,7 +193,7 @@ La suite de tests (Pytest) combine deux niveaux complémentaires :
 | `tests/test_predictor.py` | unitaire | la décision métier selon le seuil (dont le **cas limite** `proba == seuil`) |
 | `tests/test_schemas.py` | unitaire | la validation Pydantic (acceptation des entrées valides, **rejet** des invalides) |
 | `tests/test_features.py` | unitaire | le feature engineering (médianes apprises au `fit`, formules calculées au `transform`) |
-| `tests/test_api.py` | fonctionnel | les endpoints HTTP, les erreurs de validation (422) et la **dégradation gracieuse** de la base |
+| `tests/test_api.py` | fonctionnel | les endpoints HTTP, l'**authentification** (401), les erreurs de validation (422), la **persistance** en base et sa **dégradation gracieuse** |
 | `tests/conftest.py` | — | les *fixtures* partagées (ex. un employé valide de référence) |
 
 Quelques scénarios critiques explicitement couverts :
@@ -202,6 +202,11 @@ Quelques scénarios critiques explicitement couverts :
   doit prédire un départ (le code utilise `>=`).
 - **Scénarios d'erreur** : champ obligatoire manquant ou valeur hors des
   valeurs autorisées renvoient une erreur HTTP 422.
+- **Authentification** : un appel sans en-tête `X-API-Key`, ou avec une clé
+  invalide, renvoie une erreur HTTP 401 sans que le modèle soit chargé.
+- **Persistance nominale** : quand la base répond, l'entrée et la sortie sont
+  bien écrites toutes les deux, la clé étrangère pointe sur l'employé créé, et
+  la prédiction archivée correspond à celle renvoyée au client.
 - **Dégradation gracieuse** : si la base PostgreSQL est désactivée ou en panne
   (simulée par *mocking* avec `monkeypatch`), la prédiction aboutit quand même
   et l'API renvoie une réponse valide — l'incident est invisible pour le client.
@@ -224,8 +229,11 @@ uv run pytest --cov-report=html
 ```
 
 Le rapport est écrit dans `htmlcov/` (ouvrir `htmlcov/index.html`). La
-couverture globale du code applicatif (`src/`) est de **97 %**, les modules
-cœur (`schemas`, `predictor`, `features`) étant couverts à 100 %.
+couverture globale du code applicatif (`src/`) est de **98 %**, les modules
+cœur (`schemas`, `predictor`, `features`, `security`) étant couverts à 100 %.
+
+Un seuil est appliqué dans `pyproject.toml` (`--cov-fail-under=90`) : la suite
+de tests échoue si la couverture passe sous 90 %, ce qui fait rougir la CI.
 
 ### Contrôle de style
 
@@ -235,8 +243,20 @@ uv run ruff check src tests
 
 ## CI/CD
 
-Le projet utilise GitHub Actions pour lancer les tests automatiquement lors des push et pull requests.
-Le déploiement continu vers Hugging Face Spaces est configuré via le workflow dédié.
+Le projet utilise **un seul workflow GitHub Actions**
+(`.github/workflows/ci-cd.yml`) qui enchaîne deux jobs :
+
+| Job | Déclenchement | Rôle |
+|---|---|---|
+| `tests` | push sur `main` et toute pull request | Intégration continue : `uv sync`, `ruff check`, puis `pytest` avec seuil de couverture. |
+| `deploy` | uniquement push sur `main`, environnement `production` | Déploiement continu : synchronisation vers Hugging Face Spaces, qui reconstruit l'image et redéploie l'API. |
+
+Le job `deploy` déclare **`needs: tests`** : le déploiement ne démarre que si les
+tests sont au vert. Si un test échoue, ou si la couverture passe sous 90 %, le
+job `deploy` n'est pas exécuté du tout.
+
+La branche `main` est par ailleurs protégée : la fusion d'une pull request exige
+que le check `tests` soit vert et que la branche soit à jour.
 
 ## Modèle de données
 
